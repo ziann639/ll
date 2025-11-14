@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Aplikasi Kasir Restoran</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f9ff; }
+    header { background: #2196f3; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; }
+    .container { display: flex; height: calc(100vh - 60px); }
+
+    /* Sidebar Pesanan */
+    .order-section { width: 40%; background: white; border-right: 2px solid #eee; display: flex; flex-direction: column; }
+    .order-list { flex: 1; overflow-y: auto; padding: 10px; }
+    .order-item { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding: 8px 0; }
+    .summary { padding: 15px; background: #f0f0f0; }
+    .summary p { margin: 5px 0; display: flex; justify-content: space-between; }
+    .pay-btn { width: 100%; padding: 15px; background: #4caf50; color: white; font-size: 18px; border: none; cursor: pointer; }
+
+    /* Produk */
+    .product-section { width: 60%; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; overflow-y: auto; }
+    .product { background: white; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
+    .product:hover { transform: scale(1.05); }
+    .product img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
+    .product h4 { margin: 8px 0 5px; font-size: 14px; }
+    .product p { margin: 0; color: #2196f3; font-weight: bold; }
+
+    /* Login */
+    #loginPage { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(to right, #2196f3, #21cbf3); }
+    #loginBox { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); text-align: center; width: 300px; }
+    #loginBox input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; }
+    #loginBox button { width: 100%; padding: 10px; background: #2196f3; border: none; color: white; font-size: 16px; border-radius: 5px; cursor: pointer; }
+
+    /* Modal Pembayaran */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 10px; width: 300px; text-align: center; }
+    .modal-content h3 { margin-bottom: 15px; }
+    .modal-content button { width: 100%; margin: 5px 0; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    .qris { background: #00a859; color: white; }
+    .dana { background: #0086ff; color: white; }
+    .ovo { background: #4b0082; color: white; }
+    .shopee { background: #ff5722; color: white; }
+    .tunai { background: #555; color: white; }
+  </style>
+</head>
+<body>
+
+<!-- Halaman Login -->
+<div id="loginPage">
+  <div id="loginBox">
+    <h2>Login Kasir</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="errorMsg" style="color:red;"></p>
+  </div>
+</div>
+
+<!-- Halaman Kasir -->
+<div id="kasirPage" style="display:none;">
+  <header>💻 Kasir Digital Restoran</header>
+  <div class="container">
+    <!-- Bagian Pesanan -->
+    <div class="order-section">
+      <div class="order-list" id="orderList"></div>
+      <div class="summary">
+        <p><span>Total Item:</span> <span id="itemCount">0</span></p>
+        <p><span>Subtotal:</span> <span id="subtotal">Rp 0</span></p>
+        <p><span>PPN 10%:</span> <span id="ppn">Rp 0</span></p>
+        <p><strong>Total Bayar:</strong> <strong id="total">Rp 0</strong></p>
+      </div>
+      <button class="pay-btn" onclick="openPayment()">Bayar</button>
+    </div>
+    <!-- Bagian Produk -->
+    <div class="product-section" id="productSection"></div>
+  </div>
+</div>
+
+<!-- Modal Pembayaran -->
+<div id="paymentModal" class="modal">
+  <div class="modal-content">
+    <h3>Pilih Metode Pembayaran</h3>
+    <button class="qris" onclick="pay('QRIS')">QRIS</button>
+    <button class="dana" onclick="pay('DANA')">DANA</button>
+    <button class="ovo" onclick="pay('OVO')">OVO</button>
+    <button class="shopee" onclick="pay('ShopeePay')">ShopeePay</button>
+    <button class="tunai" onclick="pay('Tunai')">Tunai</button>
+    <br><br>
+    <button onclick="closePayment()">Batal</button>
+  </div>
+</div>
+
+<script>
+  // ---------------- LOGIN ----------------
+  function login() {
+    const user = document.getElementById("username").value;
+    const pass = document.getElementById("password").value;
+    if (user === "admin" && pass === "1234") {
+      document.getElementById("loginPage").style.display = "none";
+      document.getElementById("kasirPage").style.display = "block";
+    } else {
+      document.getElementById("errorMsg").innerText = "Username / Password salah!";
+    }
+  }
+
+  // ---------------- PRODUK ----------------
+  const products = [
+    // === 25 Makanan ===
+    {name:"Ayam Bakar",price:15000,img:"https://source.unsplash.com/400x300/?grilled-chicken"},
+    {name:"Ayam Penyet",price:15000,img:"https://source.unsplash.com/400x300/?chicken-rice"},
+    {name:"Ayam Goreng Bumbu",price:15000,img:"https://source.unsplash.com/400x300/?fried-chicken"},
+    {name:"Bakso Ikan",price:10000,img:"https://source.unsplash.com/400x300/?fishball"},
+    {name:"Bakso Sapi",price:12000,img:"https://source.unsplash.com/400x300/?meatball"},
+    {name:"Sate Ayam",price:20000,img:"https://source.unsplash.com/400x300/?satay"},
+    {name:"Sate Kambing",price:25000,img:"https://source.unsplash.com/400x300/?goat-satay"},
+    {name:"Mie Goreng",price:15000,img:"https://source.unsplash.com/400x300/?fried-noodles"},
+    {name:"Mie Ayam",price:12000,img:"https://source.unsplash.com/400x300/?chicken-noodle"},
+    {name:"Nasi Goreng",price:18000,img:"https://source.unsplash.com/400x300/?fried-rice"},
+    {name:"Nasi Uduk",price:10000,img:"https://source.unsplash.com/400x300/?rice"},
+    {name:"Nasi Kuning",price:12000,img:"https://source.unsplash.com/400x300/?yellow-rice"},
+    {name:"Nasi Liwet",price:15000,img:"https://source.unsplash.com/400x300/?rice-bowl"},
+    {name:"Ikan Bakar",price:22000,img:"https://source.unsplash.com/400x300/?grilled-fish"},
+    {name:"Ikan Goreng",price:20000,img:"https://source.unsplash.com/400x300/?fried-fish"},
+    {name:"Cumi Goreng Tepung",price:25000,img:"https://source.unsplash.com/400x300/?calamari"},
+    {name:"Udang Bakar",price:30000,img:"https://source.unsplash.com/400x300/?shrimp"},
+    {name:"Udang Goreng",price:28000,img:"https://source.unsplash.com/400x300/?fried-shrimp"},
+    {name:"Rawon",price:25000,img:"https://source.unsplash.com/400x300/?beef-soup"},
+    {name:"Soto Ayam",price:18000,img:"https://source.unsplash.com/400x300/?chicken-soup"},
+    {name:"Soto Betawi",price:20000,img:"https://source.unsplash.com/400x300/?soto"},
+    {name:"Gado-Gado",price:15000,img:"https://source.unsplash.com/400x300/?gado-gado"},
+    {name:"Pecel Lele",price:18000,img:"https://source.unsplash.com/400x300/?catfish"},
+    {name:"Tahu Tempe Goreng",price:10000,img:"https://source.unsplash.com/400x300/?tofu"},
+    {name:"Sayur Asem",price:8000,img:"https://source.unsplash.com/400x300/?vegetable-soup"},
+    // === 25 Minuman ===
+    {name:"Air Mineral",price:5000,img:"https://source.unsplash.com/400x300/?water"},
+    {name:"Es Teh Manis",price:7000,img:"https://source.unsplash.com/400x300/?iced-tea"},
+    {name:"Teh Hangat",price:5000,img:"https://source.unsplash.com/400x300/?tea"},
+    {name:"Es Jeruk",price:8000,img:"https://source.unsplash.com/400x300/?orange-juice"},
+    {name:"Jus Alpukat",price:15000,img:"https://source.unsplash.com/400x300/?avocado-juice"},
+    {name:"Jus Mangga",price:12000,img:"https://source.unsplash.com/400x300/?mango-juice"},
+    {name:"Jus Jambu",price:10000,img:"https://source.unsplash.com/400x300/?guava-juice"},
+    {name:"Jus Melon",price:12000,img:"https://source.unsplash.com/400x300/?melon-juice"},
+    {name:"Jus Semangka",price:10000,img:"https://source.unsplash.com/400x300/?watermelon-juice"},
+    {name:"Jus Stroberi",price:15000,img:"https://source.unsplash.com/400x300/?strawberry-juice"},
+    {name:"Kopi Hitam",price:8000,img:"https://source.unsplash.com/400x300/?black-coffee"},
+    {name:"Kopi Susu",price:10000,img:"https://source.unsplash.com/400x300/?coffee"},
+    {name:"Cappuccino",price:15000,img:"https://source.unsplash.com/400x300/?cappuccino"},
+    {name:"Latte",price:15000,img:"https://source.unsplash.com/400x300/?latte"},
+    {name:"Espresso",price:12000,img:"https://source.unsplash.com/400x300/?espresso"},
+    {name:"Milkshake Cokelat",price:18000,img:"https://source.unsplash.com/400x300/?chocolate-milkshake"},
+    {name:"Milkshake Stroberi",price:18000,img:"https://source.unsplash.com/400x300/?strawberry-milkshake"},
+    {name:"Milkshake Vanila",price:18000,img:"https://source.unsplash.com/400x300/?vanilla-milkshake"},
+    {name:"Susu Hangat",price:8000,img:"https://source.unsplash.com/400x300/?milk"},
+    {name:"Es Susu",price:9000,img:"https://source.unsplash.com/400x300/?ice-milk"},
+    {name:"Wedang Jahe",price:10000,img:"https://source.unsplash.com/400x300/?ginger-tea"},
+    {name:"Bajigur",price:12000,img:"https://source.unsplash.com/400x300/?bajigur"},
+    {name:"Bandrek",price:12000,img:"https://source.unsplash.com/400x300/?bandrek"},
+    {name:"Cendol",price:12000,img:"https://source.unsplash.com/400x300/?cendol"},
+    {name:"Es Campur",price:15000,img:"https://source.unsplash.com/400x300/?es-campur"},
+    {name:"Es Teler",price:15000,img:"https://source.unsplash.com/400x300/?es-teler"},
+    {name:"Soda Gembira",price:12000,img:"https://source.unsplash.com/400x300/?soda"},
+  ];
+
+  const productSection = document.getElementById("productSection");
+  const orderList = document.getElementById("orderList");
+  const subtotalEl = document.getElementById("subtotal");
+  const ppnEl = document.getElementById("ppn");
+  const totalEl = document.getElementById("total");
+  const itemCountEl = document.getElementById("itemCount");
+
+  let order = [];
+
+  function renderProducts() {
+    products.forEach((p, i) => {
+      const div = document.createElement("div");
+      div.className = "product";
+      div.innerHTML = `
+        <img src="${p.img}" alt="${p.name}">
+        <h4>${p.name}</h4>
+        <p>Rp ${p.price.toLocaleString()}</p>
+      `;
+      div.onclick = () => addToOrder(i);
+      productSection.appendChild(div);
+    });
+  }
+
+  function addToOrder(i) {
+    const product = products[i];
+    const existing = order.find(o => o.name === product.name);
+    if (existing) {
+      existing.qty++;
+    } else {
+      order.push({...product, qty: 1});
+    }
+    renderOrder();
+  }
+
+  function renderOrder() {
+    orderList.innerHTML = "";
+    let subtotal = 0, itemCount = 0;
+    order.forEach((o, idx) => {
+      subtotal += o.price * o.qty;
+      itemCount += o.qty;
+      const div = document.createElement("div");
+      div.className = "order-item";
+      div.innerHTML = `
+        <span>${o.name} x${o.qty}</span>
+        <span>Rp ${(o.price * o.qty).toLocaleString()}</span>
+      `;
+      orderList.appendChild(div);
+    });
+
+    let ppn = subtotal * 0.1;
+    let total = subtotal + ppn;
+
+    subtotalEl.textContent = "Rp " + subtotal.toLocaleString();
+    ppnEl.textContent = "Rp " + ppn.toLocaleString();
+    totalEl.textContent = "Rp " + total.toLocaleString();
+    itemCountEl.textContent = itemCount;
+  }
+
+  // ---------------- PEMBAYARAN ----------------
+  function openPayment() { document.getElementById("paymentModal").style.display = "flex"; }
+  function closePayment() { document.getElementById("paymentModal").style.display = "none"; }
+  function pay(method) {
+    alert("Pembayaran berhasil dengan " + method);
+    order = [];
+    renderOrder();
+    closePayment();
+  }
+
+  renderProducts();
+</script>
+
+</body>
+</html>
